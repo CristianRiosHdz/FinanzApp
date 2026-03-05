@@ -5,6 +5,7 @@ import { useAuthStore, useIncomeStore, useExpenseStore, useSavingsStore, useCate
 import { supabase } from '@/lib/supabase';
 import LoginPage from '@/components/auth/LoginPage';
 import AppShell from '@/components/layout/AppShell';
+import toast from 'react-hot-toast';
 
 export default function Home() {
   const { isAuthenticated, setUser, setProfile } = useAuthStore();
@@ -20,14 +21,21 @@ export default function Home() {
         const userId = session.user.id;
         setUser({ id: userId, email: session.user.email });
 
-        // Load all data in parallel
-        Promise.all([
-          supabase.from('profiles').select('*').eq('id', userId).single(),
-          useIncomeStore.getState().fetchIncomes(userId),
-          useExpenseStore.getState().fetchExpenses(userId),
-          useSavingsStore.getState().fetchGoals(userId),
-          useCategoryStore.getState().initializeCategories(userId)
-        ]).then(([profileRes]) => {
+        // Load all data in parallel with error handling
+        toast.promise(
+          Promise.all([
+            supabase.from('profiles').select('*').eq('id', userId).single(),
+            useIncomeStore.getState().fetchIncomes(userId),
+            useExpenseStore.getState().fetchExpenses(userId),
+            useSavingsStore.getState().fetchGoals(userId),
+            useCategoryStore.getState().initializeCategories(userId)
+          ]),
+          {
+            loading: 'Sincronizando tus datos...',
+            success: 'Datos actualizados',
+            error: (err) => `Error al sincronizar: ${err.message || 'Verifica los permisos RLS'}`
+          }
+        ).then(([profileRes]) => {
           if (profileRes.data) setProfile(profileRes.data);
         });
       }

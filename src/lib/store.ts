@@ -142,7 +142,13 @@ export const useIncomeStore = create<IncomeState>()(
                     .select('*')
                     .eq('user_id', userId)
                     .order('date', { ascending: false });
-                if (!error && data) set({ incomes: data });
+
+                if (error) {
+                    set({ loading: false });
+                    throw error;
+                }
+
+                if (data) set({ incomes: data });
                 set({ loading: false });
             },
             addIncome: async (income) => {
@@ -211,7 +217,13 @@ export const useExpenseStore = create<ExpenseState>()(
                     .select('*')
                     .eq('user_id', userId)
                     .order('date', { ascending: false });
-                if (!error && data) set({ expenses: data });
+
+                if (error) {
+                    set({ loading: false });
+                    throw error;
+                }
+
+                if (data) set({ expenses: data });
                 set({ loading: false });
             },
             addExpense: async (expense) => {
