@@ -149,16 +149,21 @@ export default function Sidebar({ currentPage, onNavigate, isOpen, onClose }: Si
                 <button
                     className="btn btn-ghost btn-icon btn-sm"
                     onClick={async () => {
-                        if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                        try {
                             await supabase.auth.signOut();
+                        } catch (err) {
+                            console.error('Error signing out:', err);
+                        } finally {
                             logout();
+                            // Refresh page to clear all states reliably
+                            window.location.href = '/';
                         }
                     }}
                     title="Cerrar sesión"
                     id="logout-btn"
                     style={{ color: 'var(--color-error)' }}
                 >
-                    ↗
+                    🚪
                 </button>
             </div>
 

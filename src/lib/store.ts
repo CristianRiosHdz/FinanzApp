@@ -30,7 +30,15 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             setUser: (user) => set({ user, isAuthenticated: !!user }),
             setProfile: (profile) => set({ profile }),
-            logout: () => set({ user: null, profile: null, isAuthenticated: false }),
+            logout: () => {
+                set({ user: null, profile: null, isAuthenticated: false });
+                // Force clear all persisted storages
+                localStorage.removeItem('auth-storage');
+                localStorage.removeItem('categories-storage');
+                localStorage.removeItem('incomes-storage');
+                localStorage.removeItem('expenses-storage');
+                localStorage.removeItem('savings-storage');
+            },
             updateProfile: (updates) =>
                 set((state) => ({
                     profile: state.profile
