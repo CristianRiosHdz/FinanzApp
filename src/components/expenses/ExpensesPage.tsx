@@ -7,8 +7,9 @@ import { formatCurrency, formatDate, getCurrentMonthYear, getMonthYearLabel, get
 import toast from 'react-hot-toast';
 
 export default function ExpensesPage() {
-    const { profile } = useAuthStore();
+    const { user, profile } = useAuthStore();
     const { expenses, addExpense, updateExpense, deleteExpense, getTotalMonthlyExpenses } = useExpenseStore();
+    const userId = user?.id || '';
     const { categories } = useCategoryStore();
     const currency = (profile?.currency || 'COP') as Currency;
 
@@ -30,7 +31,7 @@ export default function ExpensesPage() {
     const [isRecurring, setIsRecurring] = useState(false);
     const [notes, setNotes] = useState('');
 
-    const userId = useAuthStore.getState().user?.id || '';
+    // userId is now defined at the top from the hook
 
     const filteredExpenses = useMemo(() => {
         return expenses
@@ -101,6 +102,11 @@ export default function ExpensesPage() {
         }
 
         try {
+            if (!userId) {
+                toast.error('Sesión no encontrada. Por favor, inicia sesión de nuevo.');
+                return;
+            }
+
             if (editingExpense) {
                 await updateExpense(editingExpense.id, {
                     amount: parseFloat(amount),
@@ -128,9 +134,9 @@ export default function ExpensesPage() {
             }
             setShowModal(false);
             resetForm();
-        } catch (error) {
-            toast.error('Error al guardar el gasto');
-            console.error(error);
+        } catch (error: any) {
+            console.error('Error guardando gasto:', error);
+            toast.error(`Error: ${error.message || 'No se pudo guardar el gasto'}`);
         }
     };
 

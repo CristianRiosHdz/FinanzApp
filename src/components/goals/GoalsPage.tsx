@@ -10,10 +10,10 @@ const GOAL_ICONS = ['🎯', '🏠', '🚗', '✈️', '💻', '📱', '🎓', '�
 const GOAL_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 
 export default function GoalsPage() {
-    const { profile } = useAuthStore();
+    const { user, profile } = useAuthStore();
     const { goals, addGoal, updateGoal, deleteGoal, contributeToGoal } = useSavingsStore();
     const currency = (profile?.currency || 'COP') as Currency;
-    const userId = useAuthStore.getState().user?.id || '';
+    const userId = user?.id || '';
 
     const [showModal, setShowModal] = useState(false);
     const [showContribute, setShowContribute] = useState<string | null>(null);
@@ -54,47 +54,61 @@ export default function GoalsPage() {
         setShowModal(true);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!name) { toast.error('Ingresa el nombre de la meta'); return; }
         if (!targetAmount || parseFloat(targetAmount) <= 0) { toast.error('Ingresa un monto válido'); return; }
 
-        if (editingGoal) {
-            updateGoal(editingGoal.id, {
-                name,
-                target_amount: parseFloat(targetAmount),
-                current_amount: parseFloat(currentAmount),
-                deadline: deadline || null,
-                icon,
-                color,
-            });
-            toast.success('Meta actualizada');
-        } else {
-            addGoal({
-                user_id: userId,
-                name,
-                target_amount: parseFloat(targetAmount),
-                current_amount: parseFloat(currentAmount),
-                deadline: deadline || null,
-                icon,
-                color,
-            });
-            toast.success('Meta creada');
+        try {
+            if (!userId) {
+                toast.error('Sesión no encontrada. Por favor, inicia sesión de nuevo.');
+                return;
+            }
+
+            if (editingGoal) {
+                await updateGoal(editingGoal.id, {
+                    name,
+                    target_amount: parseFloat(targetAmount),
+                    current_amount: parseFloat(currentAmount),
+                    deadline: deadline || null,
+                    icon,
+                    color,
+                });
+                toast.success('Meta actualizada');
+            } else {
+                await addGoal({
+                    user_id: userId,
+                    name,
+                    target_amount: parseFloat(targetAmount),
+                    current_amount: parseFloat(currentAmount),
+                    deadline: deadline || null,
+                    icon,
+                    color,
+                });
+                toast.success('Meta creada');
+            }
+            setShowModal(false);
+            resetForm();
+        } catch (error: any) {
+            console.error('Error guardando meta:', error);
+            toast.error(`Error: ${error.message || 'No se pudo guardar la meta'}`);
         }
-        setShowModal(false);
-        resetForm();
     };
 
-    const handleContribute = (goalId: string) => {
+    const handleContribute = async (goalId: string) => {
         if (!contributeAmount || parseFloat(contributeAmount) <= 0) {
             toast.error('Ingresa un monto válido');
             return;
         }
-        contributeToGoal(goalId, parseFloat(contributeAmount));
-        toast.success(`Aporte de ${formatCurrency(parseFloat(contributeAmount), currency)} registrado`);
-        setShowContribute(null);
-        setContributeAmount('');
+        try {
+            await contributeToGoal(goalId, parseFloat(contributeAmount));
+            toast.success(`Aporte de ${formatCurrency(parseFloat(contributeAmount), currency)} registrado`);
+            setShowContribute(null);
+            setContributeAmount('');
+        } catch (error: any) {
+            toast.error('Error al registrar el aporte');
+        }
     };
 
     const handleDelete = (id: string) => {
