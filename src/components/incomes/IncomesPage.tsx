@@ -7,8 +7,9 @@ import { formatCurrency, formatDate, getCurrentMonthYear, getMonthYearLabel, get
 import toast from 'react-hot-toast';
 
 export default function IncomesPage() {
-    const { profile } = useAuthStore();
+    const { user, profile } = useAuthStore();
     const { incomes, addIncome, updateIncome, deleteIncome, getTotalMonthlyIncome } = useIncomeStore();
+    const userId = user?.id || '';
     const currency = (profile?.currency || 'COP') as Currency;
 
     const [showModal, setShowModal] = useState(false);
@@ -25,7 +26,7 @@ export default function IncomesPage() {
     const [isRecurring, setIsRecurring] = useState(false);
     const [category, setCategory] = useState<'salario' | 'freelance' | 'otros'>('salario');
 
-    const userId = useAuthStore.getState().user?.id || '';
+    // userId is now defined at the top from the hook
 
     const filteredIncomes = useMemo(() => {
         return incomes
@@ -77,6 +78,11 @@ export default function IncomesPage() {
         }
 
         try {
+            if (!userId) {
+                toast.error('Sesión no encontrada. Por favor, inicia sesión de nuevo.');
+                return;
+            }
+
             if (editingIncome) {
                 await updateIncome(editingIncome.id, {
                     amount: parseFloat(amount),
@@ -99,9 +105,9 @@ export default function IncomesPage() {
             }
             setShowModal(false);
             resetForm();
-        } catch (error) {
-            toast.error('Error al guardar el ingreso');
-            console.error(error);
+        } catch (error: any) {
+            console.error('Error guardando:', error);
+            toast.error(`Error: ${error.message || 'No se pudo guardar el ingreso'}`);
         }
     };
 
