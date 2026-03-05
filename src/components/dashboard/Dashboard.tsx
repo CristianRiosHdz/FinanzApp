@@ -80,7 +80,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             });
         }
         return data;
-    }, [month, year, getTotalMonthlyIncome, getTotalMonthlyExpenses]);
+    }, [month, year, incomes, expenses, getTotalMonthlyIncome, getTotalMonthlyExpenses]);
 
     // Recent expenses
     const recentExpenses = useMemo(() => {
@@ -295,41 +295,52 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                     )}
                 </div>
 
-                {/* Area Chart - Tendencia */}
-                <div className="card animate-slide-up" style={{ animationDelay: '500ms' }}>
+                <div className="card animate-slide-up" style={{ animationDelay: '500ms', minHeight: '350px' }}>
                     <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>
                         Tendencia Mensual
                     </h3>
                     {trendData.some((d) => d.ingresos > 0 || d.gastos > 0) ? (
-                        <ResponsiveContainer width="100%" height={280}>
-                            <AreaChart data={trendData}>
-                                <defs>
-                                    <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorGastos" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                <XAxis dataKey="name" tick={{ fill: 'var(--text-tertiary)', fontSize: 12 }} />
-                                <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 12 }} />
-                                <Tooltip
-                                    formatter={(value: any) => formatCurrency(Number(value), currency)}
-                                    contentStyle={{
-                                        background: 'var(--bg-card)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: '12px',
-                                        boxShadow: 'var(--shadow-lg)',
-                                        color: 'var(--text-primary)',
-                                    }}
-                                />
-                                <Area type="monotone" dataKey="ingresos" stroke="#10B981" fill="url(#colorIngresos)" strokeWidth={2} />
-                                <Area type="monotone" dataKey="gastos" stroke="#EF4444" fill="url(#colorGastos)" strokeWidth={2} />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                        <div style={{ width: '100%', height: '280px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorGastos" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                                    <XAxis
+                                        dataKey="name"
+                                        tick={{ fill: 'var(--text-tertiary)', fontSize: 12 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+                                    <YAxis
+                                        tick={{ fill: 'var(--text-tertiary)', fontSize: 12 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tickFormatter={(value) => `$${value >= 1000 ? (value / 1000) + 'k' : value}`}
+                                    />
+                                    <Tooltip
+                                        formatter={(value: any) => formatCurrency(Number(value), currency)}
+                                        contentStyle={{
+                                            background: 'var(--bg-card)',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: '12px',
+                                            boxShadow: 'var(--shadow-lg)',
+                                            color: 'var(--text-primary)',
+                                        }}
+                                    />
+                                    <Area type="monotone" dataKey="ingresos" stroke="#10B981" fill="url(#colorIngresos)" strokeWidth={3} dot={{ r: 4, fill: '#10B981' }} activeDot={{ r: 6 }} />
+                                    <Area type="monotone" dataKey="gastos" stroke="#EF4444" fill="url(#colorGastos)" strokeWidth={3} dot={{ r: 4, fill: '#EF4444' }} activeDot={{ r: 6 }} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
                     ) : (
                         <div className="empty-state">
                             <div className="empty-state-icon">📈</div>
