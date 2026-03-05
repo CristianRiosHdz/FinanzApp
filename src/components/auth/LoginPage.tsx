@@ -12,8 +12,17 @@ export default function LoginPage() {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const { setUser, setProfile } = useAuthStore();
+    const { setUser, setProfile, logout } = useAuthStore();
     const { initializeCategories } = useCategoryStore();
+
+    // Force clear session when landing on login page to ensure fresh start
+    useState(() => {
+        if (typeof window !== 'undefined') {
+            supabase.auth.signOut().then(() => {
+                logout();
+            });
+        }
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
