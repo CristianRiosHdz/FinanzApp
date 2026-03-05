@@ -52,16 +52,21 @@ export default function LoginPage() {
                     password,
                 });
 
-                if (error) throw error;
+                if (error) {
+                    setLoading(false);
+                    toast.error('Correo o contraseña incorrectos');
+                    return;
+                }
 
-                if (data.user) {
-                    setUser({ id: data.user.id, email: data.user.email });
+                if (data?.session) {
+                    const user = data.session.user;
+                    setUser({ id: user.id, email: user.email });
 
                     // Fetch profile
                     const { data: profileData } = await supabase
                         .from('profiles')
                         .select('*')
-                        .eq('id', data.user.id)
+                        .eq('id', user.id)
                         .single();
 
                     if (profileData) {
@@ -69,6 +74,8 @@ export default function LoginPage() {
                     }
 
                     toast.success('¡Bienvenido de vuelta!');
+                } else {
+                    throw new Error('No se pudo establecer la sesión');
                 }
             } else {
                 // Real Registration with Supabase
