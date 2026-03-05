@@ -17,7 +17,7 @@ interface DashboardProps {
 export default function Dashboard({ onNavigate }: DashboardProps) {
     const { profile } = useAuthStore();
     const { incomes, getTotalMonthlyIncome } = useIncomeStore();
-    const { expenses, getTotalMonthlyExpenses, getExpensesByCategory } = useExpenseStore();
+    const { expenses, getTotalMonthlyExpenses } = useExpenseStore();
     const { categories } = useCategoryStore();
     const { goals } = useSavingsStore();
 
@@ -38,7 +38,17 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     const savingsTrend = savingsPercentage - prevSavings;
 
     // Pie chart data
-    const categoryExpenses = getExpensesByCategory(year, month);
+    const categoryExpenses = useMemo(() => {
+        const totals: Record<string, number> = {};
+        expenses.forEach((exp) => {
+            const d = new Date(exp.date);
+            if (d.getFullYear() === year && d.getMonth() === month) {
+                totals[exp.category_id] = (totals[exp.category_id] || 0) + exp.amount;
+            }
+        });
+        return totals;
+    }, [expenses, year, month]);
+
     const pieData = useMemo(() => {
         return categories
             .filter((cat) => categoryExpenses[cat.id] > 0)
