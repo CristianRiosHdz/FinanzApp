@@ -150,15 +150,19 @@ export default function Sidebar({ currentPage, onNavigate, isOpen, onClose }: Si
                     className="btn btn-ghost btn-icon btn-sm"
                     onClick={async () => {
                         if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                            // 1. Clear everything locally first
+                            localStorage.clear();
+                            logout();
+
+                            // 2. Try to tell Supabase (optional if local is clear)
                             try {
                                 await supabase.auth.signOut();
-                            } catch (err) {
-                                console.error('Error signing out:', err);
-                            } finally {
-                                logout();
-                                // Redirect and force reload
-                                window.location.href = '/';
+                            } catch (e) {
+                                console.error(e);
                             }
+
+                            // 3. Final kill: refresh and go home
+                            window.location.href = '/';
                         }
                     }}
                     title="Cerrar sesión"

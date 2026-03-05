@@ -21,23 +21,28 @@ export default function Home() {
         const userId = session.user.id;
         setUser({ id: userId, email: session.user.email });
 
-        // Load all data in parallel with error handling
+        // Load all data with explicit error handling
+        const userIdFetch = session.user.id;
         toast.promise(
           Promise.all([
-            supabase.from('profiles').select('*').eq('id', userId).single(),
-            useIncomeStore.getState().fetchIncomes(userId),
-            useExpenseStore.getState().fetchExpenses(userId),
-            useSavingsStore.getState().fetchGoals(userId),
-            useCategoryStore.getState().initializeCategories(userId)
+            supabase.from('profiles').select('*').eq('id', userIdFetch).single(),
+            useIncomeStore.getState().fetchIncomes(userIdFetch),
+            useExpenseStore.getState().fetchExpenses(userIdFetch),
+            useSavingsStore.getState().fetchGoals(userIdFetch),
+            useCategoryStore.getState().initializeCategories(userIdFetch)
           ]),
           {
-            loading: 'Sincronizando tus datos...',
-            success: 'Datos actualizados',
-            error: (err) => `Error al sincronizar: ${err.message || 'Verifica los permisos RLS'}`
+            loading: 'Sincronizando...',
+            success: 'Datos cargados',
+            error: (err) => `Error: ${err.message}`
           }
         ).then(([profileRes]) => {
           if (profileRes.data) setProfile(profileRes.data);
         });
+      } else {
+        // No session found, ensure everything is cleared
+        setUser(null);
+        setProfile(null);
       }
     };
 
