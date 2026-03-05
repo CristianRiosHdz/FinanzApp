@@ -143,7 +143,8 @@ export const useIncomeStore = create<IncomeState>()(
                     .insert([income])
                     .select()
                     .single();
-                if (!error && data) {
+                if (error) throw error;
+                if (data) {
                     set((state) => ({ incomes: [data, ...state.incomes] }));
                 }
             },
@@ -152,21 +153,19 @@ export const useIncomeStore = create<IncomeState>()(
                     .from('incomes')
                     .update(updates)
                     .eq('id', id);
-                if (!error) {
-                    set((state) => ({
-                        incomes: state.incomes.map((inc) =>
-                            inc.id === id ? { ...inc, ...updates } : inc
-                        ),
-                    }));
-                }
+                if (error) throw error;
+                set((state) => ({
+                    incomes: state.incomes.map((inc) =>
+                        inc.id === id ? { ...inc, ...updates } : inc
+                    ),
+                }));
             },
             deleteIncome: async (id) => {
                 const { error } = await supabase.from('incomes').delete().eq('id', id);
-                if (!error) {
-                    set((state) => ({
-                        incomes: state.incomes.filter((inc) => inc.id !== id),
-                    }));
-                }
+                if (error) throw error;
+                set((state) => ({
+                    incomes: state.incomes.filter((inc) => inc.id !== id),
+                }));
             },
             getTotalMonthlyIncome: (year, month) => {
                 return get().incomes
@@ -213,7 +212,8 @@ export const useExpenseStore = create<ExpenseState>()(
                     .insert([expense])
                     .select()
                     .single();
-                if (!error && data) {
+                if (error) throw error;
+                if (data) {
                     set((state) => ({ expenses: [data, ...state.expenses] }));
                 }
             },
@@ -222,21 +222,19 @@ export const useExpenseStore = create<ExpenseState>()(
                     .from('expenses')
                     .update(updates)
                     .eq('id', id);
-                if (!error) {
-                    set((state) => ({
-                        expenses: state.expenses.map((exp) =>
-                            exp.id === id ? { ...exp, ...updates } : exp
-                        ),
-                    }));
-                }
+                if (error) throw error;
+                set((state) => ({
+                    expenses: state.expenses.map((exp) =>
+                        exp.id === id ? { ...exp, ...updates } : exp
+                    ),
+                }));
             },
             deleteExpense: async (id) => {
                 const { error } = await supabase.from('expenses').delete().eq('id', id);
-                if (!error) {
-                    set((state) => ({
-                        expenses: state.expenses.filter((exp) => exp.id !== id),
-                    }));
-                }
+                if (error) throw error;
+                set((state) => ({
+                    expenses: state.expenses.filter((exp) => exp.id !== id),
+                }));
             },
             getTotalMonthlyExpenses: (year, month) => {
                 return get().expenses
