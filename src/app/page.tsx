@@ -25,7 +25,7 @@ export default function Home() {
         const userIdFetch = session.user.id;
         toast.promise(
           Promise.all([
-            supabase.from('profiles').select('*').eq('id', userIdFetch).single(),
+            supabase.from('profiles').select('*').eq('id', userIdFetch).maybeSingle(),
             useIncomeStore.getState().fetchIncomes(userIdFetch),
             useExpenseStore.getState().fetchExpenses(userIdFetch),
             useSavingsStore.getState().fetchGoals(userIdFetch),
@@ -37,7 +37,7 @@ export default function Home() {
             error: (err) => `Error: ${err.message}`
           }
         ).then(([profileRes]) => {
-          if (profileRes.data) setProfile(profileRes.data);
+          if (profileRes && profileRes.data) setProfile(profileRes.data);
         });
       } else {
         // No session found, ensure everything is cleared
