@@ -84,7 +84,7 @@ export default function ExpensesPage() {
         setShowModal(true);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!amount || parseFloat(amount) <= 0) {
@@ -100,34 +100,38 @@ export default function ExpensesPage() {
             return;
         }
 
-        if (editingExpense) {
-            updateExpense(editingExpense.id, {
-                amount: parseFloat(amount),
-                description,
-                category_id: categoryId,
-                date,
-                payment_method: paymentMethod,
-                is_recurring: isRecurring,
-                notes: notes || null,
-            });
-            toast.success('Gasto actualizado');
-        } else {
-            addExpense({
-                user_id: userId,
-                amount: parseFloat(amount),
-                description,
-                category_id: categoryId,
-                date,
-                payment_method: paymentMethod,
-                is_recurring: isRecurring,
-                notes: notes || null,
-                receipt_url: null,
-            });
-            toast.success('Gasto registrado');
+        try {
+            if (editingExpense) {
+                await updateExpense(editingExpense.id, {
+                    amount: parseFloat(amount),
+                    description,
+                    category_id: categoryId,
+                    date,
+                    payment_method: paymentMethod,
+                    is_recurring: isRecurring,
+                    notes: notes || null,
+                });
+                toast.success('Gasto actualizado');
+            } else {
+                await addExpense({
+                    user_id: userId,
+                    amount: parseFloat(amount),
+                    description,
+                    category_id: categoryId,
+                    date,
+                    payment_method: paymentMethod,
+                    is_recurring: isRecurring,
+                    notes: notes || null,
+                    receipt_url: null,
+                });
+                toast.success('Gasto registrado');
+            }
+            setShowModal(false);
+            resetForm();
+        } catch (error) {
+            toast.error('Error al guardar el gasto');
+            console.error(error);
         }
-
-        setShowModal(false);
-        resetForm();
     };
 
     const handleDelete = (id: string) => {

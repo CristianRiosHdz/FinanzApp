@@ -64,7 +64,7 @@ export default function IncomesPage() {
         setShowModal(true);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!amount || parseFloat(amount) <= 0) {
@@ -76,29 +76,33 @@ export default function IncomesPage() {
             return;
         }
 
-        if (editingIncome) {
-            updateIncome(editingIncome.id, {
-                amount: parseFloat(amount),
-                description,
-                date,
-                is_recurring: isRecurring,
-                category,
-            });
-            toast.success('Ingreso actualizado');
-        } else {
-            addIncome({
-                user_id: userId,
-                amount: parseFloat(amount),
-                description,
-                date,
-                is_recurring: isRecurring,
-                category,
-            });
-            toast.success('Ingreso registrado');
+        try {
+            if (editingIncome) {
+                await updateIncome(editingIncome.id, {
+                    amount: parseFloat(amount),
+                    description,
+                    date,
+                    is_recurring: isRecurring,
+                    category,
+                });
+                toast.success('Ingreso actualizado');
+            } else {
+                await addIncome({
+                    user_id: userId,
+                    amount: parseFloat(amount),
+                    description,
+                    date,
+                    is_recurring: isRecurring,
+                    category,
+                });
+                toast.success('Ingreso registrado');
+            }
+            setShowModal(false);
+            resetForm();
+        } catch (error) {
+            toast.error('Error al guardar el ingreso');
+            console.error(error);
         }
-
-        setShowModal(false);
-        resetForm();
     };
 
     const handleDelete = (id: string) => {
