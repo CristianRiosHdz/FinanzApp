@@ -25,6 +25,7 @@ export default function IncomesPage() {
     const [date, setDate] = useState(getTodayISO());
     const [isRecurring, setIsRecurring] = useState(false);
     const [category, setCategory] = useState<'salario' | 'freelance' | 'otros'>('salario');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // userId is now defined at the top from the hook
 
@@ -68,6 +69,8 @@ export default function IncomesPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (isSubmitting) return;
+
         if (!amount || parseFloat(amount) <= 0) {
             toast.error('Ingresa un monto válido');
             return;
@@ -77,10 +80,12 @@ export default function IncomesPage() {
             return;
         }
 
+        setIsSubmitting(true);
+        const loadingToast = toast.loading(editingIncome ? 'Actualizando...' : 'Registrando...');
+
         try {
             if (!userId) {
-                toast.error('Sesión no encontrada. Por favor, inicia sesión de nuevo.');
-                return;
+                throw new Error('Sesión no encontrada. Por favor, recarga la página.');
             }
 
             if (editingIncome) {
@@ -91,7 +96,7 @@ export default function IncomesPage() {
                     is_recurring: isRecurring,
                     category,
                 });
-                toast.success('Ingreso actualizado');
+                toast.success('Ingreso actualizado', { id: loadingToast });
             } else {
                 await addIncome({
                     user_id: userId,
@@ -101,13 +106,15 @@ export default function IncomesPage() {
                     is_recurring: isRecurring,
                     category,
                 });
-                toast.success('Ingreso registrado');
+                toast.success('Ingreso registrado', { id: loadingToast });
             }
             setShowModal(false);
             resetForm();
         } catch (error: any) {
-            console.error('Error guardando:', error);
-            toast.error(`Error: ${error.message || 'No se pudo guardar el ingreso'}`);
+            console.error('Error:', error);
+            toast.error(`Error: ${error.message || 'No se pudo guardar'}`, { id: loadingToast });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -326,8 +333,8 @@ export default function IncomesPage() {
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                                     Cancelar
                                 </button>
-                                <button type="submit" className="btn btn-primary" id="save-income-btn">
-                                    {editingIncome ? 'Guardar Cambios' : 'Registrar Ingreso'}
+                                <button type="submit" className="btn btn-primary" id="save-income-btn" disabled={isSubmitting}>
+                                    {isSubmitting ? 'Guardando...' : (editingIncome ? 'Guardar Cambios' : 'Registrar Ingreso')}
                                 </button>
                             </div>
                         </form>

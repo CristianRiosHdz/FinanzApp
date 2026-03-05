@@ -30,6 +30,7 @@ export default function ExpensesPage() {
     const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'tarjeta' | 'transferencia'>('efectivo');
     const [isRecurring, setIsRecurring] = useState(false);
     const [notes, setNotes] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // userId is now defined at the top from the hook
 
@@ -88,6 +89,8 @@ export default function ExpensesPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (isSubmitting) return;
+
         if (!amount || parseFloat(amount) <= 0) {
             toast.error('Ingresa un monto válido');
             return;
@@ -96,47 +99,53 @@ export default function ExpensesPage() {
             toast.error('La descripción debe tener al menos 3 caracteres');
             return;
         }
-        if (!categoryId) {
+
+        const currentCategoryId = categoryId || categories[0]?.id;
+        if (!currentCategoryId) {
             toast.error('Selecciona una categoría');
             return;
         }
 
+        setIsSubmitting(true);
+        const loadingToast = toast.loading(editingExpense ? 'Actualizando...' : 'Registrando...');
+
         try {
             if (!userId) {
-                toast.error('Sesión no encontrada. Por favor, inicia sesión de nuevo.');
-                return;
+                throw new Error('Sesión no encontrada. Por favor, recarga la página.');
             }
 
             if (editingExpense) {
                 await updateExpense(editingExpense.id, {
                     amount: parseFloat(amount),
                     description,
-                    category_id: categoryId,
+                    category_id: currentCategoryId,
                     date,
                     payment_method: paymentMethod,
                     is_recurring: isRecurring,
                     notes: notes || null,
                 });
-                toast.success('Gasto actualizado');
+                toast.success('Gasto actualizado', { id: loadingToast });
             } else {
                 await addExpense({
                     user_id: userId,
                     amount: parseFloat(amount),
                     description,
-                    category_id: categoryId,
+                    category_id: currentCategoryId,
                     date,
                     payment_method: paymentMethod,
                     is_recurring: isRecurring,
                     notes: notes || null,
                     receipt_url: null,
                 });
-                toast.success('Gasto registrado');
+                toast.success('Gasto registrado', { id: loadingToast });
             }
             setShowModal(false);
             resetForm();
         } catch (error: any) {
-            console.error('Error guardando gasto:', error);
-            toast.error(`Error: ${error.message || 'No se pudo guardar el gasto'}`);
+            console.error('Error:', error);
+            toast.error(`Error: ${error.message || 'No se pudo guardar'}`, { id: loadingToast });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -440,8 +449,8 @@ export default function ExpensesPage() {
                                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
                                     Cancelar
                                 </button>
-                                <button type="submit" className="btn btn-primary" id="save-expense-btn">
-                                    {editingExpense ? 'Guardar Cambios' : 'Registrar Gasto'}
+                                <button type="submit" className="btn btn-primary" id="save-expense-btn" disabled={isSubmitting}>
+                                    {isSubmitting ? 'Guardando...' : (editingExpense ? 'Guardar Cambios' : 'Registrar Gasto')}
                                 </button>
                             </div>
                         </form>
