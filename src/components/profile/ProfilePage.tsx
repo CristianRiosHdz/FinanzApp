@@ -17,17 +17,21 @@ export default function ProfilePage() {
     const [editingCat, setEditingCat] = useState<string | null>(null);
     const [catBudget, setCatBudget] = useState('');
 
-    const handleSaveProfile = () => {
+    const handleSaveProfile = async () => {
         if (!name || name.length < 2) {
             toast.error('Ingresa un nombre válido');
             return;
         }
-        updateProfile({
-            full_name: name,
-            currency,
-            monthly_income_target: monthlyTarget ? parseFloat(monthlyTarget) : null,
-        });
-        toast.success('Perfil actualizado');
+        try {
+            await updateProfile({
+                full_name: name,
+                currency,
+                monthly_income_target: monthlyTarget ? parseFloat(monthlyTarget) : null,
+            });
+            toast.success('Perfil actualizado');
+        } catch (error) {
+            toast.error('Error al actualizar el perfil');
+        }
     };
 
     const handleSaveBudget = (catId: string) => {

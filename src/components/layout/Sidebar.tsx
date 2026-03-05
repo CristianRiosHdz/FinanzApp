@@ -150,26 +150,25 @@ export default function Sidebar({ currentPage, onNavigate, isOpen, onClose }: Si
                     className="btn btn-ghost btn-icon btn-sm"
                     onClick={async () => {
                         if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                            // 1. Clear everything locally first
                             localStorage.clear();
                             logout();
-
-                            // 2. Try to tell Supabase (optional if local is clear)
                             try {
                                 await supabase.auth.signOut();
                             } catch (e) {
                                 console.error(e);
                             }
-
-                            // 3. Final kill: refresh and go home
                             window.location.href = '/';
                         }
                     }}
                     title="Cerrar sesión"
                     id="logout-btn"
-                    style={{ color: 'var(--color-error)' }}
+                    style={{ color: 'var(--color-error)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                    🚪
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
                 </button>
             </div>
 

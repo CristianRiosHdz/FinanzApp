@@ -19,7 +19,7 @@ interface AuthState {
     setUser: (user: { id: string; email?: string } | null) => void;
     setProfile: (profile: Profile | null) => void;
     logout: () => void;
-    updateProfile: (updates: Partial<Profile>) => void;
+    updateProfile: (updates: Partial<Profile>) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -39,12 +39,21 @@ export const useAuthStore = create<AuthState>()(
                 localStorage.removeItem('expenses-storage');
                 localStorage.removeItem('savings-storage');
             },
-            updateProfile: (updates) =>
-                set((state) => ({
-                    profile: state.profile
-                        ? { ...state.profile, ...updates, updated_at: new Date().toISOString() }
-                        : null,
-                })),
+            updateProfile: async (updates) => {
+                const userId = useAuthStore.getState().user?.id;
+                if (!userId) return;
+
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .update({ ...updates, updated_at: new Date().toISOString() })
+                    .eq('id', userId)
+                    .select()
+                    .single();
+
+                if (!error && data) {
+                    set({ profile: data });
+                }
+            },
         }),
         { name: 'auth-storage' }
     )
