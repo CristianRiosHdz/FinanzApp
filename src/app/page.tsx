@@ -64,7 +64,7 @@ export default function Home() {
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
         if (profile) setProfile(profile);
       } else if (event === 'SIGNED_OUT') {
