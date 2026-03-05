@@ -45,14 +45,16 @@ export const useAuthStore = create<AuthState>()(
 
                 const { data, error } = await supabase
                     .from('profiles')
-                    .update({ ...updates, updated_at: new Date().toISOString() })
-                    .eq('id', userId)
+                    .upsert({
+                        id: userId,
+                        ...updates,
+                        updated_at: new Date().toISOString()
+                    })
                     .select()
                     .single();
 
-                if (!error && data) {
-                    set({ profile: data });
-                }
+                if (error) throw error;
+                if (data) set({ profile: data });
             },
         }),
         { name: 'auth-storage' }

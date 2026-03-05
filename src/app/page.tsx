@@ -60,13 +60,27 @@ export default function Home() {
         useSavingsStore.getState().fetchGoals(userId);
         useCategoryStore.getState().initializeCategories(userId);
 
-        const { data: profile } = await supabase
+        const { data: profile, error: pError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .maybeSingle();
 
-        if (profile) setProfile(profile);
+        if (profile) {
+          setProfile(profile);
+        } else if (!pError) {
+          // Create default profile if missing
+          const { data: newProfile } = await supabase
+            .from('profiles')
+            .upsert({
+              id: userId,
+              full_name: session.user.email?.split('@')[0] || 'Usuario',
+              currency: 'COP'
+            })
+            .select()
+            .single();
+          if (newProfile) setProfile(newProfile);
+        }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
