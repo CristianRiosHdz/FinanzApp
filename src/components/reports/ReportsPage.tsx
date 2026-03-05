@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 export default function ReportsPage() {
     const { profile } = useAuthStore();
     const { incomes, getTotalMonthlyIncome } = useIncomeStore();
-    const { expenses, getTotalMonthlyExpenses, getExpensesByCategory } = useExpenseStore();
+    const { expenses, getTotalMonthlyExpenses } = useExpenseStore();
     const { categories } = useCategoryStore();
     const currency = (profile?.currency || 'COP') as Currency;
 
@@ -27,7 +27,17 @@ export default function ReportsPage() {
     const savingsRate = calculatePercentage(available, totalIncome);
 
     // Category breakdown
-    const catExpenses = getExpensesByCategory(filterYear, filterMonth);
+    const catExpenses = useMemo(() => {
+        const totals: Record<string, number> = {};
+        expenses.forEach((exp) => {
+            const d = new Date(exp.date);
+            if (d.getFullYear() === filterYear && d.getMonth() === filterMonth) {
+                totals[exp.category_id] = (totals[exp.category_id] || 0) + exp.amount;
+            }
+        });
+        return totals;
+    }, [expenses, filterYear, filterMonth]);
+
     const categoryData = useMemo(() => {
         return categories
             .map((cat) => ({
