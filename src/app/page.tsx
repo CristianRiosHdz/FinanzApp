@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useIncomeStore, useExpenseStore, useSavingsStore, useCategoryStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import LoginPage from '@/components/auth/LoginPage';
 import AppShell from '@/components/layout/AppShell';
@@ -17,16 +17,19 @@ export default function Home() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email });
+        const userId = session.user.id;
+        setUser({ id: userId, email: session.user.email });
 
-        // Fetch profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile) setProfile(profile);
+        // Load all data in parallel
+        Promise.all([
+          supabase.from('profiles').select('*').eq('id', userId).single(),
+          useIncomeStore.getState().fetchIncomes(userId),
+          useExpenseStore.getState().fetchExpenses(userId),
+          useSavingsStore.getState().fetchGoals(userId),
+          useCategoryStore.getState().initializeCategories(userId)
+        ]).then(([profileRes]) => {
+          if (profileRes.data) setProfile(profileRes.data);
+        });
       }
     };
 
@@ -34,13 +37,20 @@ export default function Home() {
 
     // Listener for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        setUser({ id: session.user.id, email: session.user.email });
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+        const userId = session.user.id;
+        setUser({ id: userId, email: session.user.email });
+
+        // Sync data
+        useIncomeStore.getState().fetchIncomes(userId);
+        useExpenseStore.getState().fetchExpenses(userId);
+        useSavingsStore.getState().fetchGoals(userId);
+        useCategoryStore.getState().initializeCategories(userId);
 
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', session.user.id)
+          .eq('id', userId)
           .single();
 
         if (profile) setProfile(profile);

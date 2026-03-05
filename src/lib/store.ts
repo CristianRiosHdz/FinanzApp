@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { supabase } from './supabase';
 import {
     Profile,
     Income,
@@ -9,11 +10,6 @@ import {
     DEFAULT_CATEGORIES,
     Currency,
 } from '@/lib/types';
-
-// Generate UUID
-function generateId(): string {
-    return crypto.randomUUID();
-}
 
 // ============ AUTH STORE ============
 interface AuthState {
@@ -49,44 +45,67 @@ export const useAuthStore = create<AuthState>()(
 // ============ CATEGORIES STORE ============
 interface CategoryState {
     categories: ExpenseCategory[];
-    initializeCategories: (userId: string) => void;
-    addCategory: (category: Omit<ExpenseCategory, 'id' | 'created_at'>) => void;
-    updateCategory: (id: string, updates: Partial<ExpenseCategory>) => void;
-    deleteCategory: (id: string) => void;
+    loading: boolean;
+    initializeCategories: (userId: string) => Promise<void>;
+    addCategory: (category: Omit<ExpenseCategory, 'id' | 'created_at'>) => Promise<void>;
+    updateCategory: (id: string, updates: Partial<ExpenseCategory>) => Promise<void>;
+    deleteCategory: (id: string) => Promise<void>;
 }
 
 export const useCategoryStore = create<CategoryState>()(
     persist(
         (set, get) => ({
             categories: [],
-            initializeCategories: (userId: string) => {
-                if (get().categories.length === 0) {
-                    const defaultCategories: ExpenseCategory[] = DEFAULT_CATEGORIES.map((cat) => ({
+            loading: false,
+            initializeCategories: async (userId: string) => {
+                set({ loading: true });
+                const { data, error } = await supabase
+                    .from('expense_categories')
+                    .select('*')
+                    .eq('user_id', userId);
+
+                if (!error && data && data.length > 0) {
+                    set({ categories: data });
+                } else if (!error && (!data || data.length === 0)) {
+                    // Create defaults if none exist in Supabase
+                    const defaultCategories = DEFAULT_CATEGORIES.map((cat) => ({
                         ...cat,
-                        id: generateId(),
                         user_id: userId,
-                        created_at: new Date().toISOString(),
                     }));
-                    set({ categories: defaultCategories });
+                    const { data: created } = await supabase
+                        .from('expense_categories')
+                        .insert(defaultCategories)
+                        .select();
+                    if (created) set({ categories: created });
+                }
+                set({ loading: false });
+            },
+            addCategory: async (category) => {
+                const { data } = await supabase
+                    .from('expense_categories')
+                    .insert([category])
+                    .select()
+                    .single();
+                if (data) set((state) => ({ categories: [...state.categories, data] }));
+            },
+            updateCategory: async (id, updates) => {
+                const { error } = await supabase.from('expense_categories').update(updates).eq('id', id);
+                if (!error) {
+                    set((state) => ({
+                        categories: state.categories.map((cat) =>
+                            cat.id === id ? { ...cat, ...updates } : cat
+                        ),
+                    }));
                 }
             },
-            addCategory: (category) =>
-                set((state) => ({
-                    categories: [
-                        ...state.categories,
-                        { ...category, id: generateId(), created_at: new Date().toISOString() },
-                    ],
-                })),
-            updateCategory: (id, updates) =>
-                set((state) => ({
-                    categories: state.categories.map((cat) =>
-                        cat.id === id ? { ...cat, ...updates } : cat
-                    ),
-                })),
-            deleteCategory: (id) =>
-                set((state) => ({
-                    categories: state.categories.filter((cat) => cat.id !== id),
-                })),
+            deleteCategory: async (id) => {
+                const { error } = await supabase.from('expense_categories').delete().eq('id', id);
+                if (!error) {
+                    set((state) => ({
+                        categories: state.categories.filter((cat) => cat.id !== id),
+                    }));
+                }
+            },
         }),
         { name: 'categories-storage' }
     )
@@ -95,10 +114,11 @@ export const useCategoryStore = create<CategoryState>()(
 // ============ INCOME STORE ============
 interface IncomeState {
     incomes: Income[];
-    addIncome: (income: Omit<Income, 'id' | 'created_at'>) => void;
-    updateIncome: (id: string, updates: Partial<Income>) => void;
-    deleteIncome: (id: string) => void;
-    getMonthlyIncomes: (year: number, month: number) => Income[];
+    loading: boolean;
+    fetchIncomes: (userId: string) => Promise<void>;
+    addIncome: (income: Omit<Income, 'id' | 'created_at'>) => Promise<void>;
+    updateIncome: (id: string, updates: Partial<Income>) => Promise<void>;
+    deleteIncome: (id: string) => Promise<void>;
     getTotalMonthlyIncome: (year: number, month: number) => number;
 }
 
@@ -106,32 +126,54 @@ export const useIncomeStore = create<IncomeState>()(
     persist(
         (set, get) => ({
             incomes: [],
-            addIncome: (income) =>
-                set((state) => ({
-                    incomes: [
-                        { ...income, id: generateId(), created_at: new Date().toISOString() },
-                        ...state.incomes,
-                    ],
-                })),
-            updateIncome: (id, updates) =>
-                set((state) => ({
-                    incomes: state.incomes.map((inc) =>
-                        inc.id === id ? { ...inc, ...updates } : inc
-                    ),
-                })),
-            deleteIncome: (id) =>
-                set((state) => ({
-                    incomes: state.incomes.filter((inc) => inc.id !== id),
-                })),
-            getMonthlyIncomes: (year, month) => {
-                return get().incomes.filter((inc) => {
-                    const d = new Date(inc.date);
-                    return d.getFullYear() === year && d.getMonth() === month;
-                });
+            loading: false,
+            fetchIncomes: async (userId) => {
+                set({ loading: true });
+                const { data, error } = await supabase
+                    .from('incomes')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('date', { ascending: false });
+                if (!error && data) set({ incomes: data });
+                set({ loading: false });
+            },
+            addIncome: async (income) => {
+                const { data, error } = await supabase
+                    .from('incomes')
+                    .insert([income])
+                    .select()
+                    .single();
+                if (!error && data) {
+                    set((state) => ({ incomes: [data, ...state.incomes] }));
+                }
+            },
+            updateIncome: async (id, updates) => {
+                const { error } = await supabase
+                    .from('incomes')
+                    .update(updates)
+                    .eq('id', id);
+                if (!error) {
+                    set((state) => ({
+                        incomes: state.incomes.map((inc) =>
+                            inc.id === id ? { ...inc, ...updates } : inc
+                        ),
+                    }));
+                }
+            },
+            deleteIncome: async (id) => {
+                const { error } = await supabase.from('incomes').delete().eq('id', id);
+                if (!error) {
+                    set((state) => ({
+                        incomes: state.incomes.filter((inc) => inc.id !== id),
+                    }));
+                }
             },
             getTotalMonthlyIncome: (year, month) => {
-                return get()
-                    .getMonthlyIncomes(year, month)
+                return get().incomes
+                    .filter((inc) => {
+                        const d = new Date(inc.date);
+                        return d.getFullYear() === year && d.getMonth() === month;
+                    })
                     .reduce((sum, inc) => sum + inc.amount, 0);
             },
         }),
@@ -142,53 +184,67 @@ export const useIncomeStore = create<IncomeState>()(
 // ============ EXPENSE STORE ============
 interface ExpenseState {
     expenses: Expense[];
-    addExpense: (expense: Omit<Expense, 'id' | 'created_at'>) => void;
-    updateExpense: (id: string, updates: Partial<Expense>) => void;
-    deleteExpense: (id: string) => void;
-    getMonthlyExpenses: (year: number, month: number) => Expense[];
+    loading: boolean;
+    fetchExpenses: (userId: string) => Promise<void>;
+    addExpense: (expense: Omit<Expense, 'id' | 'created_at'>) => Promise<void>;
+    updateExpense: (id: string, updates: Partial<Expense>) => Promise<void>;
+    deleteExpense: (id: string) => Promise<void>;
     getTotalMonthlyExpenses: (year: number, month: number) => number;
-    getExpensesByCategory: (year: number, month: number) => Record<string, number>;
 }
 
 export const useExpenseStore = create<ExpenseState>()(
     persist(
         (set, get) => ({
             expenses: [],
-            addExpense: (expense) =>
-                set((state) => ({
-                    expenses: [
-                        { ...expense, id: generateId(), created_at: new Date().toISOString() },
-                        ...state.expenses,
-                    ],
-                })),
-            updateExpense: (id, updates) =>
-                set((state) => ({
-                    expenses: state.expenses.map((exp) =>
-                        exp.id === id ? { ...exp, ...updates } : exp
-                    ),
-                })),
-            deleteExpense: (id) =>
-                set((state) => ({
-                    expenses: state.expenses.filter((exp) => exp.id !== id),
-                })),
-            getMonthlyExpenses: (year, month) => {
-                return get().expenses.filter((exp) => {
-                    const d = new Date(exp.date);
-                    return d.getFullYear() === year && d.getMonth() === month;
-                });
+            loading: false,
+            fetchExpenses: async (userId) => {
+                set({ loading: true });
+                const { data, error } = await supabase
+                    .from('expenses')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('date', { ascending: false });
+                if (!error && data) set({ expenses: data });
+                set({ loading: false });
+            },
+            addExpense: async (expense) => {
+                const { data, error } = await supabase
+                    .from('expenses')
+                    .insert([expense])
+                    .select()
+                    .single();
+                if (!error && data) {
+                    set((state) => ({ expenses: [data, ...state.expenses] }));
+                }
+            },
+            updateExpense: async (id, updates) => {
+                const { error } = await supabase
+                    .from('expenses')
+                    .update(updates)
+                    .eq('id', id);
+                if (!error) {
+                    set((state) => ({
+                        expenses: state.expenses.map((exp) =>
+                            exp.id === id ? { ...exp, ...updates } : exp
+                        ),
+                    }));
+                }
+            },
+            deleteExpense: async (id) => {
+                const { error } = await supabase.from('expenses').delete().eq('id', id);
+                if (!error) {
+                    set((state) => ({
+                        expenses: state.expenses.filter((exp) => exp.id !== id),
+                    }));
+                }
             },
             getTotalMonthlyExpenses: (year, month) => {
-                return get()
-                    .getMonthlyExpenses(year, month)
+                return get().expenses
+                    .filter((exp) => {
+                        const d = new Date(exp.date);
+                        return d.getFullYear() === year && d.getMonth() === month;
+                    })
                     .reduce((sum, exp) => sum + exp.amount, 0);
-            },
-            getExpensesByCategory: (year, month) => {
-                const monthly = get().getMonthlyExpenses(year, month);
-                const byCategory: Record<string, number> = {};
-                monthly.forEach((exp) => {
-                    byCategory[exp.category_id] = (byCategory[exp.category_id] || 0) + exp.amount;
-                });
-                return byCategory;
             },
         }),
         { name: 'expenses-storage' }
@@ -198,37 +254,75 @@ export const useExpenseStore = create<ExpenseState>()(
 // ============ SAVINGS GOALS STORE ============
 interface SavingsGoalState {
     goals: SavingsGoal[];
-    addGoal: (goal: Omit<SavingsGoal, 'id' | 'created_at'>) => void;
-    updateGoal: (id: string, updates: Partial<SavingsGoal>) => void;
-    deleteGoal: (id: string) => void;
-    contributeToGoal: (id: string, amount: number) => void;
+    loading: boolean;
+    fetchGoals: (userId: string) => Promise<void>;
+    addGoal: (goal: Omit<SavingsGoal, 'id' | 'created_at'>) => Promise<void>;
+    updateGoal: (id: string, updates: Partial<SavingsGoal>) => Promise<void>;
+    deleteGoal: (id: string) => Promise<void>;
+    contributeToGoal: (id: string, amount: number) => Promise<void>;
 }
 
 export const useSavingsStore = create<SavingsGoalState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             goals: [],
-            addGoal: (goal) =>
-                set((state) => ({
-                    goals: [
-                        ...state.goals,
-                        { ...goal, id: generateId(), created_at: new Date().toISOString() },
-                    ],
-                })),
-            updateGoal: (id, updates) =>
-                set((state) => ({
-                    goals: state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g)),
-                })),
-            deleteGoal: (id) =>
-                set((state) => ({
-                    goals: state.goals.filter((g) => g.id !== id),
-                })),
-            contributeToGoal: (id, amount) =>
-                set((state) => ({
-                    goals: state.goals.map((g) =>
-                        g.id === id ? { ...g, current_amount: g.current_amount + amount } : g
-                    ),
-                })),
+            loading: false,
+            fetchGoals: async (userId) => {
+                set({ loading: true });
+                const { data, error } = await supabase
+                    .from('savings_goals')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .order('created_at', { ascending: true });
+                if (!error && data) set({ goals: data });
+                set({ loading: false });
+            },
+            addGoal: async (goal) => {
+                const { data, error } = await supabase
+                    .from('savings_goals')
+                    .insert([goal])
+                    .select()
+                    .single();
+                if (!error && data) {
+                    set((state) => ({ goals: [...state.goals, data] }));
+                }
+            },
+            updateGoal: async (id, updates) => {
+                const { error } = await supabase
+                    .from('savings_goals')
+                    .update(updates)
+                    .eq('id', id);
+                if (!error) {
+                    set((state) => ({
+                        goals: state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g)),
+                    }));
+                }
+            },
+            deleteGoal: async (id) => {
+                const { error } = await supabase.from('savings_goals').delete().eq('id', id);
+                if (!error) {
+                    set((state) => ({
+                        goals: state.goals.filter((g) => g.id !== id),
+                    }));
+                }
+            },
+            contributeToGoal: async (id, amount) => {
+                const goal = get().goals.find((g) => g.id === id);
+                if (goal) {
+                    const newAmount = goal.current_amount + amount;
+                    const { error } = await supabase
+                        .from('savings_goals')
+                        .update({ current_amount: newAmount })
+                        .eq('id', id);
+                    if (!error) {
+                        set((state) => ({
+                            goals: state.goals.map((g) =>
+                                g.id === id ? { ...g, current_amount: newAmount } : g
+                            ),
+                        }));
+                    }
+                }
+            },
         }),
         { name: 'savings-storage' }
     )
